@@ -11,8 +11,15 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/storage.sh"
 
+# Hook runtimes that pass JSON do so on stdin. Interactive invocations such as
+# Gemini's PostToolUse command may inherit a terminal stdin instead; reading
+# unconditionally there blocks waiting for input.
+INPUT=""
+if [ ! -t 0 ]; then
+  INPUT=$(cat 2>/dev/null || true)
+fi
+
 # Prevent infinite loop: if stop hook is already active, exit silently
-INPUT=$(cat 2>/dev/null || true)
 if echo "$INPUT" | grep -q '"stop_hook_active"[[:space:]]*:[[:space:]]*true' 2>/dev/null; then
   exit 0
 fi
