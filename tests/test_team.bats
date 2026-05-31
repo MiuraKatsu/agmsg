@@ -124,6 +124,47 @@ teardown() {
   [[ "$output" =~ "available_teams=myteam" ]]
 }
 
+@test "whoami: auto-detects claude-code from CLAUDE_CODE_SESSION_ID env" {
+  bash "$SCRIPTS/join.sh" myteam alice claude-code /tmp/proj
+  CLAUDE_CODE_SESSION_ID=test-session run bash "$SCRIPTS/whoami.sh" /tmp/proj
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "agent=alice" ]]
+  [[ "$output" =~ "type=claude-code" ]]
+}
+
+@test "whoami: auto-detects codex from CODEX_SANDBOX env" {
+  bash "$SCRIPTS/join.sh" myteam bob codex /tmp/proj
+  CODEX_SANDBOX=seatbelt run bash "$SCRIPTS/whoami.sh" /tmp/proj
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "agent=bob" ]]
+  [[ "$output" =~ "type=codex" ]]
+}
+
+@test "whoami: auto-detects codex from CODEX_THREAD_ID env" {
+  bash "$SCRIPTS/join.sh" myteam bob codex /tmp/proj
+  CODEX_THREAD_ID=some-thread run bash "$SCRIPTS/whoami.sh" /tmp/proj
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "agent=bob" ]]
+  [[ "$output" =~ "type=codex" ]]
+}
+
+@test "whoami: defaults to claude-code when no env vars set" {
+  bash "$SCRIPTS/join.sh" myteam alice claude-code /tmp/proj
+  run bash "$SCRIPTS/whoami.sh" /tmp/proj
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "agent=alice" ]]
+  [[ "$output" =~ "type=claude-code" ]]
+}
+
+@test "whoami: explicit type overrides auto-detection" {
+  bash "$SCRIPTS/join.sh" myteam alice claude-code /tmp/proj
+  bash "$SCRIPTS/join.sh" myteam bob codex /tmp/proj
+  CODEX_SANDBOX=test run bash "$SCRIPTS/whoami.sh" /tmp/proj claude-code
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ "agent=alice" ]]
+  [[ "$output" =~ "type=claude-code" ]]
+}
+
 # --- reset.sh ---
 
 @test "reset: removes only current project registration" {
