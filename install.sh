@@ -25,19 +25,23 @@ AGENTS_DIR="$HOME/.agents"
 CMD_NAME=""
 UPDATE_ONLY=false
 INTERACTIVE=true
+TARGET_AGENT=""  # claude-code, codex, gemini, antigravity, or empty for auto/default
 
 # --- Parse args ---
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cmd)    CMD_NAME="$2"; INTERACTIVE=false; shift 2 ;;
+    --target) TARGET_AGENT="$2"; shift 2 ;;
     --update) UPDATE_ONLY=true; shift ;;
     -h|--help)
       echo "Usage: ./install.sh [options]"
       echo ""
       echo "Options:"
-      echo "  --cmd <name>   Command & skill folder name (default: agmsg)"
-      echo "                 Claude Code: /<cmd>, Codex: \$<cmd>"
-      echo "  --update       Update skill scripts only (preserve DB and teams)"
+      echo "  --cmd <name>      Command & skill folder name (default: agmsg)"
+      echo "                    Claude Code: /<cmd>, Codex/Gemini/Antigravity: \$<cmd>"
+      echo "  --target <agent>  Target agent: claude-code, codex, gemini, antigravity"
+      echo "                    Sets SKILL.md template for a specific agent"
+      echo "  --update          Update skill scripts only (preserve DB and teams)"
       echo ""
       echo "After install, join a team per-project:"
       echo "  ~/.agents/skills/<cmd>/scripts/join.sh <team> <name> <type> <project>"
@@ -78,7 +82,22 @@ if [ "$UPDATE_ONLY" = true ]; then
   fi
   SKILL_NAME="$(basename "$SKILL_DIR")"
   echo "  Updating $SKILL_NAME..."
-  sed "s/__SKILL_NAME__/$SKILL_NAME/g" "$SCRIPT_DIR/templates/cmd.codex.md" > "$SKILL_DIR/SKILL.md"
+  if [ -z "$TARGET_AGENT" ]; then
+    if grep -q "whoami.sh.*antigravity" "$SKILL_DIR/SKILL.md" 2>/dev/null; then
+      TARGET_AGENT="antigravity"
+    elif grep -q "whoami.sh.*gemini" "$SKILL_DIR/SKILL.md" 2>/dev/null; then
+      TARGET_AGENT="gemini"
+    else
+      TARGET_AGENT="codex"
+    fi
+  fi
+  SKILL_TEMPLATE="cmd.codex.md"
+  if [ "$TARGET_AGENT" = "gemini" ]; then
+    SKILL_TEMPLATE="cmd.gemini.md"
+  elif [ "$TARGET_AGENT" = "antigravity" ]; then
+    SKILL_TEMPLATE="cmd.antigravity.md"
+  fi
+  sed "s/__SKILL_NAME__/$SKILL_NAME/g" "$SCRIPT_DIR/templates/$SKILL_TEMPLATE" > "$SKILL_DIR/SKILL.md"
   # Recursive copy so nested helper dirs (scripts/lib/) ship without enumerating files.
   cp -R "$SCRIPT_DIR/scripts/." "$SKILL_DIR/scripts/"
   for tmpl in "$SCRIPT_DIR/templates/"cmd.*.md; do
@@ -119,8 +138,14 @@ SKILL_DIR="$AGENTS_DIR/skills/$CMD_NAME"
 echo "  Installing to ~/.agents/skills/$CMD_NAME/ ..."
 mkdir -p "$SKILL_DIR"/{scripts,templates,db,agents}
 
-# SKILL.md is generated from the Codex command template (Codex reads SKILL.md directly)
-sed "s/__SKILL_NAME__/$CMD_NAME/g" "$SCRIPT_DIR/templates/cmd.codex.md" > "$SKILL_DIR/SKILL.md"
+# SKILL.md is generated from the agent-specific command template.
+SKILL_TEMPLATE="cmd.codex.md"
+if [ "$TARGET_AGENT" = "gemini" ]; then
+  SKILL_TEMPLATE="cmd.gemini.md"
+elif [ "$TARGET_AGENT" = "antigravity" ]; then
+  SKILL_TEMPLATE="cmd.antigravity.md"
+fi
+sed "s/__SKILL_NAME__/$CMD_NAME/g" "$SCRIPT_DIR/templates/$SKILL_TEMPLATE" > "$SKILL_DIR/SKILL.md"
 # Recursive copy so nested helper dirs (scripts/lib/) ship without enumerating files.
 cp -R "$SCRIPT_DIR/scripts/." "$SKILL_DIR/scripts/"
 
@@ -204,10 +229,12 @@ echo ""
 echo "  ✓ Installed to ~/.agents/skills/$CMD_NAME/"
 echo ""
 echo "  Next steps:"
-echo "    1. Restart your agent (Claude Code / Codex) to pick up the new skill"
+echo "    1. Restart your agent (Claude Code / Codex / Gemini CLI / Antigravity) to pick up the new skill"
 echo "    2. Run the command to join a team:"
 echo "       Claude Code:  /$CMD_NAME"
 echo "       Codex:        \$$CMD_NAME"
+echo "       Gemini CLI:   \$$CMD_NAME"
+echo "       Antigravity:  \$$CMD_NAME"
 echo "       It will prompt for team name and agent name on first run."
 echo ""
 echo "  Docs: https://agmsg.cc/"
