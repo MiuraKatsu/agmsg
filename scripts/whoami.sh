@@ -8,8 +8,8 @@ set -euo pipefail
 # Not joined:      not_joined=true available_teams=<t1,t2,...> (or "none")
 #
 # Usage: whoami.sh <project_path> [type]
-#   type: claude-code, codex, gemini, etc.
-#   If type is omitted, auto-detect from process tree.
+#   type: claude-code, codex, gemini, antigravity, copilot
+#   If type is omitted, auto-detect from env vars and process tree.
 
 # Auto-detect CLI type from environment variables and process tree
 detect_cli_type() {

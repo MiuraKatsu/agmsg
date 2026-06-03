@@ -10,6 +10,8 @@ PROJECT="${2:?Missing project_path}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/lib/storage.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/actas-lock.sh"
 
 # Prevent infinite loop: if stop hook is already active, exit silently
 INPUT=$(cat 2>/dev/null || true)
@@ -70,14 +72,16 @@ if [ -f "$MARKER" ]; then
   [ -z "$INTERVAL" ] && INTERVAL=$("$SCRIPT_DIR/config.sh" get hook.check_interval 60)
   case "$INTERVAL" in ''|*[!0-9]*) INTERVAL=60 ;; esac
   if [ $(( now - last )) -lt "$INTERVAL" ]; then
-    if [ "$TYPE" = "codex" ]; then
-      cat <<'ENDJSON'
+    case "$TYPE" in
+      codex|copilot)
+        cat <<'ENDJSON'
 {
   "continue": true,
   "systemMessage": "agmsg: check skipped (cooldown)"
 }
 ENDJSON
-    fi
+        ;;
+    esac
     exit 0
   fi
 fi
@@ -92,6 +96,22 @@ if [ ! -f "$DB" ]; then exit 0; fi
 OUTPUT=""
 IFS=',' read -ra TEAM_LIST <<< "$TEAMS"
 for team in "${TEAM_LIST[@]}"; do
+  # Honor actas exclusivity locks. If (team, AGENT) is currently held by
+  # another live session, that session is the owner of that role's inbox —
+  # don't deliver here. Mirrors the per-pair filtering watch.sh does for
+  # CC sessions (#62), giving Stop-hook delivery (codex / claude-code
+  # turn-mode) the same "respect peer locks" guarantee.
+  #
+  # Note: AGENT comes from whoami.sh, which returns the first registered
+  # agent for (project, type). It is NOT the session's in-memory actas
+  # role. That asymmetry is the Codex caveat documented in README — if a
+  # Codex session actas'd into <name>, check-inbox is still polling
+  # whatever whoami chose first, not <name>.
+  state=$(actas_lock_state "$team" "$AGENT" "${SESSION_ID:-}")
+  case "$state" in
+    other:*) continue ;;
+  esac
+
   RESULT=$(sqlite3 "$DB" "
     SELECT from_agent || char(31) || replace(replace(body, char(10), '\n'), char(9), '\t') || char(31) || created_at
     FROM messages WHERE team='$team' AND to_agent='$AGENT' AND read_at IS NULL
@@ -111,14 +131,16 @@ done
 
 # No new messages
 if [ -z "$OUTPUT" ]; then
-  if [ "$TYPE" = "codex" ]; then
-    cat <<'ENDJSON'
+  case "$TYPE" in
+    codex|copilot)
+      cat <<'ENDJSON'
 {
   "continue": true,
   "systemMessage": "agmsg: no new messages"
 }
 ENDJSON
-  fi
+      ;;
+  esac
   exit 0
 fi
 
