@@ -25,13 +25,13 @@ AGENTS_DIR="$HOME/.agents"
 CMD_NAME=""
 UPDATE_ONLY=false
 INTERACTIVE=true
-TARGET_AGENT=""  # claude-code, codex, gemini, antigravity, or empty for auto/default
+AGENT_TYPE=""  # claude-code, codex, gemini, antigravity — passed via --agent-type, or empty for auto/default
 
 # --- Parse args ---
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cmd)    CMD_NAME="$2"; INTERACTIVE=false; shift 2 ;;
-    --target) TARGET_AGENT="$2"; shift 2 ;;
+    --agent-type) AGENT_TYPE="$2"; shift 2 ;;
     --update) UPDATE_ONLY=true; shift ;;
     -h|--help)
       echo "Usage: ./install.sh [options]"
@@ -39,8 +39,9 @@ while [[ $# -gt 0 ]]; do
       echo "Options:"
       echo "  --cmd <name>      Command & skill folder name (default: agmsg)"
       echo "                    Claude Code: /<cmd>, Codex/Gemini/Antigravity: \$<cmd>"
-      echo "  --target <agent>  Target agent: claude-code, codex, gemini, antigravity"
-      echo "                    Sets SKILL.md template for a specific agent"
+      echo "  --agent-type <t>  Agent type: claude-code, codex, gemini, antigravity"
+      echo "                    Selects which template becomes SKILL.md (matches the"
+      echo "                    <type> arg passed to join.sh / whoami.sh)"
       echo "  --update          Update skill scripts only (preserve DB and teams)"
       echo ""
       echo "After install, join a team per-project:"
@@ -82,19 +83,19 @@ if [ "$UPDATE_ONLY" = true ]; then
   fi
   SKILL_NAME="$(basename "$SKILL_DIR")"
   echo "  Updating $SKILL_NAME..."
-  if [ -z "$TARGET_AGENT" ]; then
+  if [ -z "$AGENT_TYPE" ]; then
     if grep -q "whoami.sh.*antigravity" "$SKILL_DIR/SKILL.md" 2>/dev/null; then
-      TARGET_AGENT="antigravity"
+      AGENT_TYPE="antigravity"
     elif grep -q "whoami.sh.*gemini" "$SKILL_DIR/SKILL.md" 2>/dev/null; then
-      TARGET_AGENT="gemini"
+      AGENT_TYPE="gemini"
     else
-      TARGET_AGENT="codex"
+      AGENT_TYPE="codex"
     fi
   fi
   SKILL_TEMPLATE="cmd.codex.md"
-  if [ "$TARGET_AGENT" = "gemini" ]; then
+  if [ "$AGENT_TYPE" = "gemini" ]; then
     SKILL_TEMPLATE="cmd.gemini.md"
-  elif [ "$TARGET_AGENT" = "antigravity" ]; then
+  elif [ "$AGENT_TYPE" = "antigravity" ]; then
     SKILL_TEMPLATE="cmd.antigravity.md"
   fi
   sed "s/__SKILL_NAME__/$SKILL_NAME/g" "$SCRIPT_DIR/templates/$SKILL_TEMPLATE" > "$SKILL_DIR/SKILL.md"
@@ -140,9 +141,9 @@ mkdir -p "$SKILL_DIR"/{scripts,templates,db,agents}
 
 # SKILL.md is generated from the agent-specific command template.
 SKILL_TEMPLATE="cmd.codex.md"
-if [ "$TARGET_AGENT" = "gemini" ]; then
+if [ "$AGENT_TYPE" = "gemini" ]; then
   SKILL_TEMPLATE="cmd.gemini.md"
-elif [ "$TARGET_AGENT" = "antigravity" ]; then
+elif [ "$AGENT_TYPE" = "antigravity" ]; then
   SKILL_TEMPLATE="cmd.antigravity.md"
 fi
 sed "s/__SKILL_NAME__/$CMD_NAME/g" "$SCRIPT_DIR/templates/$SKILL_TEMPLATE" > "$SKILL_DIR/SKILL.md"

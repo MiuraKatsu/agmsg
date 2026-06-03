@@ -39,7 +39,7 @@ After setup, your agent handles everything — just talk to it naturally. "Send 
 ```bash
 ./install.sh              # Interactive (asks command name, default: agmsg)
 ./install.sh --cmd m      # Non-interactive with custom command name
-./install.sh --target gemini  # Install a Gemini-oriented SKILL.md
+./install.sh --agent-type gemini  # Install a Gemini-oriented SKILL.md
 ```
 
 The **command name** determines:
