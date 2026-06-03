@@ -13,7 +13,17 @@ set -euo pipefail
 
 # Auto-detect CLI type from environment variables and process tree
 detect_cli_type() {
-  # 1. Check environment variables first (most reliable)
+  # 1. Check environment variables. Order matters: prefer the env vars that
+  # the runtime *itself* exports for its own session over the env vars users
+  # commonly set globally for unrelated reasons. CLAUDE_CODE_SESSION_ID and
+  # CODEX_SANDBOX / CODEX_THREAD_ID are set by their runtimes only. The
+  # GEMINI_API_KEY family is also routinely set by users of the Gemini API
+  # SDK without the Gemini CLI being involved, so it goes last.
+  if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
+    echo "claude-code"
+    return 0
+  fi
+
   if [ -n "${CODEX_SANDBOX:-}" ] || [ -n "${CODEX_THREAD_ID:-}" ]; then
     echo "codex"
     return 0
@@ -21,11 +31,6 @@ detect_cli_type() {
 
   if [ -n "${GEMINI_API_KEY:-}" ] || [ -n "${GOOGLE_GEMINI_CLI:-}" ]; then
     echo "gemini"
-    return 0
-  fi
-
-  if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
-    echo "claude-code"
     return 0
   fi
 

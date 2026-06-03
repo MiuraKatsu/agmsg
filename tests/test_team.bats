@@ -134,6 +134,10 @@ teardown() {
 
 @test "whoami: auto-detects codex from CODEX_SANDBOX env" {
   bash "$SCRIPTS/join.sh" myteam bob codex /tmp/proj
+  # Unset CLAUDE_CODE_SESSION_ID: bats can run under a CC session that
+  # already exports it, which would shadow the codex signal under the
+  # CLAUDE_CODE_SESSION_ID-first detection order.
+  unset CLAUDE_CODE_SESSION_ID
   CODEX_SANDBOX=seatbelt run bash "$SCRIPTS/whoami.sh" /tmp/proj
   [ "$status" -eq 0 ]
   [[ "$output" =~ "agent=bob" ]]
@@ -142,6 +146,7 @@ teardown() {
 
 @test "whoami: auto-detects codex from CODEX_THREAD_ID env" {
   bash "$SCRIPTS/join.sh" myteam bob codex /tmp/proj
+  unset CLAUDE_CODE_SESSION_ID
   CODEX_THREAD_ID=some-thread run bash "$SCRIPTS/whoami.sh" /tmp/proj
   [ "$status" -eq 0 ]
   [[ "$output" =~ "agent=bob" ]]
