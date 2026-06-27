@@ -155,6 +155,7 @@ teardown() {
 
 @test "whoami: defaults to claude-code when no env vars set" {
   bash "$SCRIPTS/join.sh" myteam alice claude-code /tmp/proj
+  unset CLAUDE_CODE_SESSION_ID CODEX_SANDBOX CODEX_THREAD_ID GEMINI_API_KEY GOOGLE_GEMINI_CLI
   run bash "$SCRIPTS/whoami.sh" /tmp/proj
   [ "$status" -eq 0 ]
   [[ "$output" =~ "agent=alice" ]]
